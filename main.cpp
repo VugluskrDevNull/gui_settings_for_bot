@@ -1,33 +1,27 @@
-#include <QCoreApplication>
-#include <QSettings>
-#include <QFile>
-#include <QDebug>
-#include <QString>
-#include <QTextStream>
-#include <QTimer>
-#include <QTime>
+#include "mainwindow.h"
+#include "qircbot.h"
+#include "timebomb.h"
+#include <QApplication>
 
-#include "console.h"
-//#include "Interface.h"        //
-#include <timebomb.h>
-
-int main(int argc, char** argv)
+int main(int argc, char *argv[])
 {
-#ifndef Q_OS_WIN32
-  setlocale(LC_ALL, "");
-#endif
-    QCoreApplication app(argc, argv);
+    QApplication a(argc, argv);
+    MainWindow w;
+    Bot * bot= new Bot;
+    GameTimeBomb * game = new GameTimeBomb (bot);
 
-    qDebug()<<"enter !bomb\n";
-    Console *cons = new Console();
-    GameTimeBomb * game = new GameTimeBomb(cons);
+    if (!(bot->connect()))
+        return  1;
 
-    cons->run();
-    QObject::connect(cons, SIGNAL (userInput(QString)), game,  SLOT(userInput(QString)));    //  запуск игры офлайн
-    QObject::connect(game, SIGNAL (send(QString)), cons,  SLOT(send(QString)));
-    QObject::connect(cons, SIGNAL(quit()), &app, SLOT(quit()));
-    QObject::connect(cons, SIGNAL(quit()), game, SLOT(quit()));
-    return app.exec();
+    // соединение бота с игрой
+    QObject::connect(bot, SIGNAL (channelMessage(QString, QString)), game, SLOT(userInput(QString, QString)));
+    QObject::connect(game, SIGNAL (send(QString)), bot,  SLOT(send(QString)));           // сообщения от игры к боту
+
+    // соединение бота с гуи
+    QObject::connect(&w,  SIGNAL(sendChannelMessage(QString)), bot,  SLOT(send(QString)));
+    QObject::connect(bot, SIGNAL(channelMessage(QString , QString )),     &w,   SLOT(addChannelLog(QString , QString )));
+    QObject::connect(bot, SIGNAL(statusMessage(QString)),      &w,   SLOT(addStatusLog(QString)));
+    QObject::connect(bot, SIGNAL(debugMessage(QString)),       &w,   SLOT(addDebugLog(QString)));
+    w.show();
+    return a.exec();
 }
-
-
